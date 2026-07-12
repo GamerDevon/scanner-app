@@ -39,14 +39,20 @@ class _OrderScannerScreenState extends State<OrderScannerScreen> {
     _initializeCamera();
   }
 
-  // Locates the back camera lens and initializes the stream controller
+  // Locates the back camera lens safely
   void _initializeCamera() async {
     if (widget.cameras.isEmpty) return;
     
-    final backCamera = widget.cameras.firstWhere(
-      (camera) => camera.lensDirection == CameraLensDirection.back,
-      orElse: () => widget.cameras.first,
-    );
+    CameraDescription? backCamera;
+    for (var camera in widget.cameras) {
+      if (camera.lensDirection == CameraLensDirection.back) {
+        backCamera = camera;
+        break;
+      }
+    }
+    
+    // Fallback if no explicit back lens configuration was tagged
+    backCamera ??= widget.cameras.first;
 
     _cameraController = CameraController(
       backCamera, 
@@ -97,7 +103,6 @@ class _OrderScannerScreenState extends State<OrderScannerScreen> {
     });
   }
 
-  // Snaps via inline back lens frame buffer, passing to ML Kit engine instantly
   Future<void> _scanNotebookPage() async {
     if (_cameraController == null || !_cameraController!.value.isInitialized || _isProcessing) return;
 
