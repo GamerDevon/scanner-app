@@ -9,7 +9,7 @@ void main() async {
   // TODO: Replace placeholders with your actual Supabase URL and Anon Key
   await Supabase.initialize(
     url: 'https://ivzloxwkokirozungdxj.supabase.co',
-    anonKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml2emxveHdrb2tpcm96dW5nZHhqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODM3NjI2NTIsImV4cCI6MjA5OTMzODY1Mn0.m2RM1NANkqCAafNzpLfy8syKNMxm4J_x3VY9nnVCvts',
+    anonKey: 'sb_publishable_zQQYp0_h_n3Tlc2FwanFuA_ApGTqc8X',
   );
 
   runApp(const MyApp());
