@@ -8,8 +8,8 @@ void main() async {
   // Initialize Supabase client
   // TODO: Replace placeholders with your actual Supabase URL and Anon Key
   await Supabase.initialize(
-    url: 'https://YOUR_SUPABASE_PROJECT_URL.supabase.co',
-    anonKey: 'YOUR_SUPABASE_ANON_PUBLIC_KEY',
+    url: 'https://ivzloxwkokirozungdxj.supabase.co',
+    anonKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml2emxveHdrb2tpcm96dW5nZHhqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODM3NjI2NTIsImV4cCI6MjA5OTMzODY1Mn0.m2RM1NANkqCAafNzpLfy8syKNMxm4J_x3VY9nnVCvts',
   );
 
   runApp(const MyApp());
