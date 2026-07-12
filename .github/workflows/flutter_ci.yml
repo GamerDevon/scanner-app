@@ -36,17 +36,22 @@ jobs:
       - name: Generate Android Platform Files
         run: flutter create --platforms=android .
 
-      - name: Inject ProGuard Rules for ML Kit
+      - name: Inject ProGuard Rules and Fix ML Kit
         run: |
           mkdir -p android/app
+          # Keep R8 from crashing the build
           echo "-dontwarn com.google.mlkit.vision.text.**" > android/app/proguard-rules.pro
           echo "-keep class com.google.mlkit.vision.text.** { *; }" >> android/app/proguard-rules.pro
+          
+          # Inject the missing native packages directly into the build configuration
+          sed -i '/dependencies {/a \    implementation "com.google.mlkit:text-recognition-chinese:16.0.0"\n    implementation "com.google.mlkit:text-recognition-devanagari:16.0.0"\n    implementation "com.google.mlkit:text-recognition-japanese:16.0.0"\n    implementation "com.google.mlkit:text-recognition-korean:16.0.0"' android/app/build.gradle
 
+      # Switched to debug mode so you can see error messages on your tablet screen if it crashes
       - name: Build Android APK
-        run: flutter build apk --release
+        run: flutter build apk --debug
 
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: release-apk
-          path: build/app/outputs/flutter-apk/app-release.apk
+          name: debug-apk
+          path: build/app/outputs/flutter-apk/app-debug.apk
