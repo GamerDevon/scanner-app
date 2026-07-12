@@ -12,10 +12,10 @@ void main() async {
   // 2. Query available system cameras
   _cameras = await availableCameras();
   
-  // 3. Initialize your Supabase database client instance
+  // 3. Initialize your Supabase database client instance using publishableKey
   await Supabase.initialize(
     url: 'https://ivzloxwkokirozungdxj.supabase.co', 
-    anonKey: 'sb_publishable_zQQYp0_h_n3Tlc2FwanFuA_ApGTqc8X',
+    publishableKey: 'sb_publishable_zQQYp0_h_n3Tlc2FwanFuA_ApGTqc8X',
   );
 
   runApp(const MyApp());
@@ -33,7 +33,6 @@ class MyApp extends StatelessWidget {
         useMaterial3: true, 
         colorSchemeSeed: Colors.blue,
       ),
-      // Boot right into your order staging screen, delivering system cameras
       home: OrderScannerScreen(cameras: _cameras),
     );
   }
