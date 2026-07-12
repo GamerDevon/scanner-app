@@ -9,11 +9,6 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-    
-    # This sets the base directory for all run commands safely
-    defaults:
-      run:
-        working-directory: scanner-app
 
     steps:
       - name: Checkout Repository
