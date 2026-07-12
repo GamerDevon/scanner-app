@@ -1,60 +1,22 @@
-name: Flutter CI/CD Pipeline
+name: scanner_app
+description: "A new Flutter project."
+publish_to: 'none'
+version: 1.0.0+1
 
-on:
-  push:
-    branches: [ "main", "develop" ]
-  pull_request:
-    branches: [ "main" ]
+environment:
+  sdk: '>=3.0.0 <4.0.0'
 
-jobs:
-  build:
-    runs-on: ubuntu-latest
+dependencies:
+  flutter:
+    sdk: flutter
+  supabase_flutter: ^2.6.0
+  camera: ^0.11.0
+  google_mlkit_text_recognition: ^0.13.0
 
-    steps:
-      - name: Checkout Repository
-        uses: actions/checkout@v4
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^3.0.0
 
-      - name: Set up Java
-        uses: actions/setup-java@v4
-        with:
-          distribution: 'zulu'
-          java-version: '17'
-
-      - name: Set up Flutter
-        uses: subosito/flutter-action@v2
-        with:
-          flutter-version: '3.x'
-          channel: 'stable'
-          cache: true
-
-      - name: Install Dependencies
-        run: flutter pub get
-
-      - name: Code Analysis
-        run: flutter analyze
-
-      - name: Generate Android Platform Files
-        run: flutter create --platforms=android .
-
-      - name: Inject ProGuard Rules and Fix ML Kit
-        run: |
-          mkdir -p android/app
-          # Keep R8 from crashing the build
-          echo "-dontwarn com.google.mlkit.vision.text.**" > android/app/proguard-rules.pro
-          echo "-keep class com.google.mlkit.vision.text.** { *; }" >> android/app/proguard-rules.pro
-          
-          # Find whether build.gradle or build.gradle.kts exists and update the correct one
-          if [ -f "android/app/build.gradle.kts" ]; then
-            sed -i '/dependencies {/a \    implementation("com.google.mlkit:text-recognition-chinese:16.0.0")\n    implementation("com.google.mlkit:text-recognition-devanagari:16.0.0")\n    implementation("com.google.mlkit:text-recognition-japanese:16.0.0")\n    implementation("com.google.mlkit:text-recognition-korean:16.0.0")' android/app/build.gradle.kts
-          else
-            sed -i '/dependencies {/a \    implementation "com.google.mlkit:text-recognition-chinese:16.0.0"\n    implementation "com.google.mlkit:text-recognition-devanagari:16.0.0"\n    implementation "com.google.mlkit:text-recognition-japanese:16.0.0"\n    implementation "com.google.mlkit:text-recognition-korean:16.0.0"' android/app/build.gradle
-          fi
-
-      - name: Build Android APK
-        run: flutter build apk --debug
-
-      - name: Upload APK Artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: debug-apk
-          path: build/app/outputs/flutter-apk/app-debug.apk
+flutter:
+  uses-material-design: true
