@@ -1,18 +1,20 @@
 import 'package:flutter/material.dart';
-import 'package:image_picker/image_picker.dart';
+import 'package:camera/camera.dart';
 import 'package:google_mlkit_text_recognition/google_mlkit_text_recognition.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class OrderScannerScreen extends StatefulWidget {
-  const OrderScannerScreen({Key? key}) : super(key: key);
+  final List<CameraDescription> cameras;
+
+  const OrderScannerScreen({Key? key, required this.cameras}) : super(key: key);
 
   @override
   State<OrderScannerScreen> createState() => _OrderScannerScreenState();
 }
 
 class _OrderScannerScreenState extends State<OrderScannerScreen> {
+  CameraController? _cameraController;
   final TextRecognizer _textRecognizer = TextRecognizer(script: TextRecognitionScript.latin);
-  final ImagePicker _imagePicker = ImagePicker();
 
   List<String> _scannedBubbles = [];
   bool _isProcessing = false;
@@ -32,7 +34,37 @@ class _OrderScannerScreenState extends State<OrderScannerScreen> {
   final _formKey = GlobalKey<FormState>();
 
   @override
+  void initState() {
+    super.initState();
+    _initializeCamera();
+  }
+
+  // Locates the back camera lens and initializes the stream controller
+  void _initializeCamera() async {
+    if (widget.cameras.isEmpty) return;
+    
+    final backCamera = widget.cameras.firstWhere(
+      (camera) => camera.lensDirection == CameraLensDirection.back,
+      orElse: () => widget.cameras.first,
+    );
+
+    _cameraController = CameraController(
+      backCamera, 
+      ResolutionPreset.medium, 
+      enableAudio: false,
+    );
+
+    try {
+      await _cameraController!.initialize();
+      if (mounted) setState(() {});
+    } catch (e) {
+      debugPrint("Camera subsystem error: $e");
+    }
+  }
+
+  @override
   void dispose() {
+    _cameraController?.dispose();
     _jmenoController.dispose();
     _telefonController.dispose();
     _emailController.dispose();
@@ -65,18 +97,16 @@ class _OrderScannerScreenState extends State<OrderScannerScreen> {
     });
   }
 
+  // Snaps via inline back lens frame buffer, passing to ML Kit engine instantly
   Future<void> _scanNotebookPage() async {
+    if (_cameraController == null || !_cameraController!.value.isInitialized || _isProcessing) return;
+
     try {
-      final XFile? pickedFile = await _imagePicker.pickImage(
-        source: ImageSource.camera,
-        imageQuality: 85,
-      );
-
-      if (pickedFile == null) return;
-
       setState(() {
         _isProcessing = true;
       });
+
+      final XFile pickedFile = await _cameraController!.takePicture();
 
       final InputImage inputImage = InputImage.fromFilePath(pickedFile.path);
       final RecognizedText recognizedText = await _textRecognizer.processImage(inputImage);
@@ -185,8 +215,34 @@ class _OrderScannerScreenState extends State<OrderScannerScreen> {
       ),
       body: Column(
         children: [
+          // 1. Inline Camera Frame Element
+          if (_cameraController != null && _cameraController!.value.isInitialized)
+            SizedBox(
+              height: 200,
+              width: double.infinity,
+              child: ClipRect(
+                child: OverflowBox(
+                  alignment: Alignment.center,
+                  child: FittedBox(
+                    fit: BoxFit.cover,
+                    child: SizedBox(
+                      width: _cameraController!.value.previewSize!.height,
+                      height: _cameraController!.value.previewSize!.width,
+                      child: CameraPreview(_cameraController!),
+                    ),
+                  ),
+                ),
+              ),
+            )
+          else
+            const SizedBox(
+              height: 200,
+              child: Center(child: CircularProgressIndicator()),
+            ),
+
+          // 2. Scan Snap Execution Button
           Padding(
-            padding: const EdgeInsets.all(16.0),
+            padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
             child: ElevatedButton.icon(
               onPressed: _isProcessing ? null : _scanNotebookPage,
               icon: _isProcessing 
@@ -194,14 +250,16 @@ class _OrderScannerScreenState extends State<OrderScannerScreen> {
                   : const Icon(Icons.camera_alt),
               label: Text(_isProcessing ? 'Processing Text...' : 'Scan Notebook Page'),
               style: ElevatedButton.styleFrom(
-                minimumSize: const Size.fromHeight(50),
+                minimumSize: const Size.fromHeight(45),
                 textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
               ),
             ),
           ),
+
+          // 3. Extracted Bubble Selection Grid
           if (_scannedBubbles.isNotEmpty)
             Container(
-              constraints: const BoxConstraints(maxHeight: 180),
+              constraints: const BoxConstraints(maxHeight: 140),
               width: double.infinity,
               color: Colors.grey.shade100,
               padding: const EdgeInsets.all(8.0),
@@ -249,6 +307,8 @@ class _OrderScannerScreenState extends State<OrderScannerScreen> {
                 ),
               ),
             ),
+
+          // 4. Input Target Form Setup
           Expanded(
             child: Form(
               key: _formKey,
@@ -347,6 +407,8 @@ class _OrderScannerScreenState extends State<OrderScannerScreen> {
               ),
             ),
           ),
+
+          // 5. Global Supabase Commit Panel
           Padding(
             padding: const EdgeInsets.all(16.0),
             child: ElevatedButton(
