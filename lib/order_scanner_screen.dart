@@ -1,7 +1,11 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:camera/camera.dart';
 import 'package:google_mlkit_text_recognition/google_mlkit_text_recognition.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:image/image.dart' as img;
+import 'package:path_provider/path_provider.dart';
 
 class OrderScannerScreen extends StatefulWidget {
   final List<CameraDescription> cameras;
@@ -15,6 +19,7 @@ class OrderScannerScreen extends StatefulWidget {
 class _OrderScannerScreenState extends State<OrderScannerScreen> {
   CameraController? _cameraController;
   final TextRecognizer _textRecognizer = TextRecognizer(script: TextRecognitionScript.latin);
+  final ImagePicker _imagePicker = ImagePicker();
 
   List<String> _scannedBubbles = [];
   bool _isProcessing = false;
@@ -52,7 +57,6 @@ class _OrderScannerScreenState extends State<OrderScannerScreen> {
     
     backCamera ??= widget.cameras.first;
 
-    // Upgraded resolution to high for sharper text capture
     _cameraController = CameraController(
       backCamera, 
       ResolutionPreset.high, 
@@ -102,36 +106,77 @@ class _OrderScannerScreenState extends State<OrderScannerScreen> {
     });
   }
 
+  // Helper logic to enhance an image file for better Czech OCR recognition
+  Future<File> _enhanceImageForOcr(String filePath) async {
+    final bytes = await File(filePath).readAsBytes();
+    img.Image? originalImage = img.decodeImage(bytes);
+    
+    if (originalImage != null) {
+      // Convert to Grayscale and turn up the contrast to sharpen accent hooks (háčky/čárky)
+      img.Image processedImage = img.grayscale(originalImage);
+      processedImage = img.contrast(processedImage, contrast: 130); 
+
+      final tempDir = await getTemporaryDirectory();
+      final tempPath = '${tempDir.path}/optimized_ocr_${DateTime.now().millisecondsSinceEpoch}.jpg';
+      return File(tempPath)..writeAsBytesSync(img.encodeJpg(processedImage, quality: 95));
+    }
+    return File(filePath);
+  }
+
+  void _processRecognizedText(RecognizedText recognizedText) {
+    final List<String> lines = recognizedText.text
+        .split('\n')
+        .map((line) => line.trim())
+        .where((line) => line.isNotEmpty)
+        .toList();
+
+    setState(() {
+      _scannedBubbles = lines;
+      _isProcessing = false;
+    });
+  }
+
   Future<void> _scanNotebookPage() async {
     if (_cameraController == null || !_cameraController!.value.isInitialized || _isProcessing) return;
 
     try {
-      setState(() {
-        _isProcessing = true;
-      });
+      setState(() { _isProcessing = true; });
 
       final XFile pickedFile = await _cameraController!.takePicture();
-      final InputImage inputImage = InputImage.fromFilePath(pickedFile.path);
+      final File optimizedFile = await _enhanceImageForOcr(pickedFile.path);
+      
+      final InputImage inputImage = InputImage.fromFile(optimizedFile);
       final RecognizedText recognizedText = await _textRecognizer.processImage(inputImage);
 
-      final List<String> lines = recognizedText.text
-          .split('\n')
-          .map((line) => line.trim())
-          .where((line) => line.isNotEmpty)
-          .toList();
-
       if (!mounted) return;
-
-      setState(() {
-        _scannedBubbles = lines;
-        _isProcessing = false;
-      });
+      _processRecognizedText(recognizedText);
     } catch (e) {
       if (!mounted) return;
-      setState(() {
-        _isProcessing = false;
-      });
-      _showSnackBar('Error processing text: ${e.toString()}', isError: true);
+      setState(() { _isProcessing = false; });
+      _showSnackBar('Error processing camera text: ${e.toString()}', isError: true);
+    }
+  }
+
+  Future<void> _scanGalleryImage() async {
+    if (_isProcessing) return;
+
+    try {
+      final XFile? pickedFile = await _imagePicker.pickImage(source: ImageSource.gallery);
+      if (pickedFile == null) return;
+
+      setState(() { _isProcessing = true; });
+
+      final File optimizedFile = await _enhanceImageForOcr(pickedFile.path);
+      
+      final InputImage inputImage = InputImage.fromFile(optimizedFile);
+      final RecognizedText recognizedText = await _textRecognizer.processImage(inputImage);
+
+      if (!mounted) return;
+      _processRecognizedText(recognizedText);
+    } catch (e) {
+      if (!mounted) return;
+      setState(() { _isProcessing = false; });
+      _showSnackBar('Error processing gallery image: ${e.toString()}', isError: true);
     }
   }
 
@@ -223,10 +268,10 @@ class _OrderScannerScreenState extends State<OrderScannerScreen> {
       ),
       body: Column(
         children: [
-          // 1. Inline Camera Frame Element
+          // 1. Inline Camera Frame
           if (_cameraController != null && _cameraController!.value.isInitialized)
             SizedBox(
-              height: 200,
+              height: 180,
               width: double.infinity,
               child: ClipRect(
                 child: OverflowBox(
@@ -247,30 +292,42 @@ class _OrderScannerScreenState extends State<OrderScannerScreen> {
             )
           else
             const SizedBox(
-              height: 200,
+              height: 180,
               child: Center(child: CircularProgressIndicator()),
             ),
 
-          // 2. Scan Snap Execution Button
+          // 2. Dual Scan Control Buttons
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
-            child: ElevatedButton.icon(
-              onPressed: _isProcessing ? null : _scanNotebookPage,
-              icon: _isProcessing 
-                  ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
-                  : const Icon(Icons.camera_alt),
-              label: Text(_isProcessing ? 'Processing Text...' : 'Scan Notebook Page'),
-              style: ElevatedButton.styleFrom(
-                minimumSize: const Size.fromHeight(45),
-                textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-              ),
+            child: Row(
+              children: [
+                Expanded(
+                  child: ElevatedButton.icon(
+                    onPressed: _isProcessing ? null : _scanNotebookPage,
+                    icon: _isProcessing 
+                        ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
+                        : const Icon(Icons.camera_alt),
+                    label: const Text('Scan Page'),
+                    style: ElevatedButton.styleFrom(minimumSize: const Size.fromHeight(45)),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: _isProcessing ? null : _scanGalleryImage,
+                    icon: const Icon(Icons.photo_library),
+                    label: const Text('Pick Image'),
+                    style: OutlinedButton.styleFrom(minimumSize: const Size.fromHeight(45)),
+                  ),
+                ),
+              ],
             ),
           ),
 
           // 3. Extracted Bubble Selection Grid
           if (_scannedBubbles.isNotEmpty)
             Container(
-              constraints: const BoxConstraints(maxHeight: 140),
+              constraints: const BoxConstraints(maxHeight: 120),
               width: double.infinity,
               color: Colors.grey.shade100,
               padding: const EdgeInsets.all(8.0),
@@ -319,7 +376,7 @@ class _OrderScannerScreenState extends State<OrderScannerScreen> {
               ),
             ),
 
-          // 4. Input Target Form Setup
+          // 4. Input Target Form
           Expanded(
             child: Form(
               key: _formKey,
@@ -376,11 +433,11 @@ class _OrderScannerScreenState extends State<OrderScannerScreen> {
                   const SizedBox(height: 12),
                   TextFormField(
                     controller: _zboziController,
-                    maxLines: 3,
+                    maxLines: 2,
                     decoration: const InputDecoration(
                       labelText: 'Zboží', 
                       border: OutlineInputBorder(),
-                      helperText: 'Selecting multi-line text appends onto this field.',
+                      helperText: 'Selecting text appends onto this field.',
                     ),
                   ),
                   const SizedBox(height: 12),
@@ -419,7 +476,7 @@ class _OrderScannerScreenState extends State<OrderScannerScreen> {
             ),
           ),
 
-          // 5. Global Supabase Commit Panel
+          // 5. Supabase Commit Panel
           Padding(
             padding: const EdgeInsets.all(16.0),
             child: ElevatedButton(
@@ -427,7 +484,7 @@ class _OrderScannerScreenState extends State<OrderScannerScreen> {
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.green.shade600,
                 foregroundColor: Colors.white,
-                minimumSize: const Size.fromHeight(55),
+                minimumSize: const Size.fromHeight(50),
                 textStyle: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
               ),
