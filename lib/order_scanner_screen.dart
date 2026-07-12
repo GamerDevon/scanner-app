@@ -39,7 +39,6 @@ class _OrderScannerScreenState extends State<OrderScannerScreen> {
     _initializeCamera();
   }
 
-  // Locates the back camera lens safely
   void _initializeCamera() async {
     if (widget.cameras.isEmpty) return;
     
@@ -51,12 +50,12 @@ class _OrderScannerScreenState extends State<OrderScannerScreen> {
       }
     }
     
-    // Fallback if no explicit back lens configuration was tagged
     backCamera ??= widget.cameras.first;
 
+    // Upgraded resolution to high for sharper text capture
     _cameraController = CameraController(
       backCamera, 
-      ResolutionPreset.medium, 
+      ResolutionPreset.high, 
       enableAudio: false,
     );
 
@@ -112,7 +111,6 @@ class _OrderScannerScreenState extends State<OrderScannerScreen> {
       });
 
       final XFile pickedFile = await _cameraController!.takePicture();
-
       final InputImage inputImage = InputImage.fromFilePath(pickedFile.path);
       final RecognizedText recognizedText = await _textRecognizer.processImage(inputImage);
 
@@ -122,11 +120,14 @@ class _OrderScannerScreenState extends State<OrderScannerScreen> {
           .where((line) => line.isNotEmpty)
           .toList();
 
+      if (!mounted) return;
+
       setState(() {
         _scannedBubbles = lines;
         _isProcessing = false;
       });
     } catch (e) {
+      if (!mounted) return;
       setState(() {
         _isProcessing = false;
       });
@@ -186,11 +187,13 @@ class _OrderScannerScreenState extends State<OrderScannerScreen> {
         'prijata_platba': platba,
       };
 
-      await Supabase.instance.client.from('orders').insert(payload);
+      await Supabase.instance.client.from('objednavky').insert(payload);
 
+      if (!mounted) return;
       _showSnackBar('Order successfully committed to Supabase.');
       _resetForm();
     } catch (e) {
+      if (!mounted) return;
       _showSnackBar('Database connection error: ${e.toString()}', isError: true);
     }
   }
@@ -233,7 +236,10 @@ class _OrderScannerScreenState extends State<OrderScannerScreen> {
                     child: SizedBox(
                       width: _cameraController!.value.previewSize!.height,
                       height: _cameraController!.value.previewSize!.width,
-                      child: CameraPreview(_cameraController!),
+                      child: AspectRatio(
+                        aspectRatio: _cameraController!.value.aspectRatio,
+                        child: CameraPreview(_cameraController!),
+                      ),
                     ),
                   ),
                 ),
