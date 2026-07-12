@@ -14,6 +14,14 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
+      - name: Locate Flutter Project Root
+        id: find-root
+        run: |
+          # Locate where pubspec.yaml lives and save its directory path
+          DIR=$(dirname $(find . -name "pubspec.yaml" -not -path "*/.*" | head -n 1))
+          echo "Found pubspec.yaml in directory: $DIR"
+          echo "project_path=$DIR" >> $GITHUB_OUTPUT
+
       - name: Set up Java
         uses: actions/setup-java@v4
         with:
@@ -28,13 +36,17 @@ jobs:
           cache: true
 
       - name: Install Dependencies
+        working-directory: ${{ steps.find-root.outputs.project_path }}
         run: flutter pub get
 
       - name: Code Analysis
+        working-directory: ${{ steps.find-root.outputs.project_path }}
         run: flutter analyze
 
       - name: Run Tests
+        working-directory: ${{ steps.find-root.outputs.project_path }}
         run: flutter test
 
       - name: Build Android APK
+        working-directory: ${{ steps.find-root.outputs.project_path }}
         run: flutter build apk --release
