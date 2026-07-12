@@ -1,9 +1,16 @@
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 void main() async {
-  // CRITICAL: This line prevents immediate crashes on native plugins like ML Kit
+  // 1. Initialize native bindings to stop the ML Kit black screen crash
   WidgetsFlutterBinding.ensureInitialized();
-  
+
+  // 2. Initialize Supabase directly with your hardcoded keys
+  await Supabase.initialize(
+    url: 'https://ivzloxwkokirozungdxj.supabase.co', 
+    publishable_Key: 'sb_publishable_zQQYp0_h_n3Tlc2FwanFuA_ApGTqc8X', // Put your publishable key here
+  );
+
   runApp(const MyApp());
 }
 
@@ -31,11 +38,13 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
+  final supabase = Supabase.instance.client;
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('ML Kit Scanner'),
+        title: const Text('Scanner & Supabase App'),
         backgroundColor: Theme.of(context).colorScheme.inversePrimary,
       ),
       body: Center(
@@ -43,19 +52,21 @@ class _HomeScreenState extends State<HomeScreen> {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             const Icon(
-              Icons.camera_alt_rounded,
+              Icons.cloud_sync_rounded,
               size: 80,
               color: Colors.deepPurple,
             ),
             const SizedBox(height: 20),
-            const Text(
-              'Ready to scan text',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.w500),
+            Text(
+              supabase.auth.currentUser == null 
+                  ? 'Not logged into Supabase' 
+                  : 'Logged in as: ${supabase.auth.currentUser!.email}',
+              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
             ),
             const SizedBox(height: 30),
             ElevatedButton.icon(
               onPressed: () {
-                // Your scanning logic or navigation to scanner view goes here
+                // Your scanning logic or database operations go here
               },
               icon: const Icon(Icons.qr_code_scanner),
               label: const Text('Start Scanning'),
