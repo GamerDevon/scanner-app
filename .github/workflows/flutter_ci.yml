@@ -36,5 +36,11 @@ jobs:
       - name: Generate Android Platform Files
         run: flutter create --platforms=android .
 
+      - name: Inject ProGuard Rules for ML Kit
+        run: |
+          mkdir -p android/app
+          echo "-dontwarn com.google.mlkit.vision.text.**" > android/app/proguard-rules.pro
+          echo "-keep class com.google.mlkit.vision.text.** { *; }" >> android/app/proguard-rules.pro
+
       - name: Build Android APK
-        run: flutter build apk --release --no-shrink
+        run: flutter build apk --release
