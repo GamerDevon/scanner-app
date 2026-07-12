@@ -12,6 +12,9 @@ dependencies:
   supabase_flutter: ^2.6.0
   camera: ^0.11.0
   google_mlkit_text_recognition: ^0.13.0
+  image_picker: ^1.1.1
+  image: ^4.5.4
+  path_provider: ^2.1.3 # Added to store temporary enhanced images for OCR
 
 dev_dependencies:
   flutter_test:
