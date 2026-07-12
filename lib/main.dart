@@ -8,7 +8,7 @@ void main() async {
   // 2. Initialize Supabase directly with your hardcoded keys
   await Supabase.initialize(
     url: 'https://ivzloxwkokirozungdxj.supabase.co', 
-    anonKey: 'sb_publishable_zQQYp0_h_n3Tlc2FwanFuA_ApGTqc8X', // Put your publishable key here
+    publishableKey: 'sb_publishable_zQQYp0_h_n3Tlc2FwanFuA_ApGTqc8X', // Put your publishable key here
   );
 
   runApp(const MyApp());
