@@ -28,13 +28,17 @@ jobs:
           cache: true
 
       - name: Install Dependencies
+        working-directory: ./scanner-app
         run: flutter pub get
 
       - name: Code Analysis
+        working-directory: ./scanner-app
         run: flutter analyze
 
       - name: Run Tests
+        working-directory: ./scanner-app
         run: flutter test
 
       - name: Build Android APK
+        working-directory: ./scanner-app
         run: flutter build apk --release
