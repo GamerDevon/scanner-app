@@ -37,4 +37,4 @@ jobs:
         run: flutter create --platforms=android .
 
       - name: Build Android APK
-        run: flutter build apk --release
+        run: flutter build apk --release --no-shrink
